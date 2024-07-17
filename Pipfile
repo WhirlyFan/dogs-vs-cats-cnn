@@ -9,6 +9,7 @@ torch = "*"
 torchvision = "*"
 numpy = "*"
 matplotlib = "*"
+scikit-learn = "*"
 
 [dev-packages]
 
