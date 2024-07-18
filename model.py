@@ -1,9 +1,7 @@
 import torch
 from torch import nn
-from torch.utils.data import Dataset
 from tqdm.auto import tqdm
 from timeit import default_timer as timer
-from PIL import Image
 from helpers import device
 
 class ModelV0(nn.Module):

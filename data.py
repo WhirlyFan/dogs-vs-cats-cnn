@@ -1,11 +1,9 @@
 import os
-import pathlib
 from typing import List, Tuple
 import zipfile
 from pathlib import Path
 import torch
-from torch.utils.data import Dataset, DataLoader
-from constants import BATCH_SIZE, NUM_WORKERS
+from torch.utils.data import Dataset
 from helpers import find_classes
 from PIL import Image
 

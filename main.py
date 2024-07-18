@@ -1,10 +1,6 @@
 import os
 import torch
-import random
-from tqdm.auto import tqdm
-from torchinfo import summary
 from pathlib import Path
-from timeit import default_timer as timer
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
 from torchvision import transforms
