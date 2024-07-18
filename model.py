@@ -6,37 +6,37 @@ from timeit import default_timer as timer
 from PIL import Image
 from helpers import device
 
-class TinyVGG(nn.Module):
+class ModelV0(nn.Module):
     def __init__(self) -> None:
         super().__init__()
 
         self.conv_block_1 = nn.Sequential(
-            nn.Conv2d(3, 16, kernel_size=3, padding=0, stride=2),
-            nn.BatchNorm2d(16),
+            nn.Conv2d(in_channels=3, out_channels=16, kernel_size=3, padding=0, stride=2),
+            nn.BatchNorm2d(num_features=16),
             nn.ReLU(),
-            nn.MaxPool2d(2)
+            nn.MaxPool2d(stride=2)
         )
 
         self.conv_block_2 = nn.Sequential(
-            nn.Conv2d(16, 32, kernel_size=3, padding=0, stride=2),
-            nn.BatchNorm2d(32),
+            nn.Conv2d(in_channels=16, out_channels=32, kernel_size=3, padding=0, stride=2),
+            nn.BatchNorm2d(num_features=32),
             nn.ReLU(),
-            nn.MaxPool2d(2)
+            nn.MaxPool2d(stride=2)
         )
 
         self.conv_block_3 = nn.Sequential(
-            nn.Conv2d(32, 64, kernel_size=3, padding=0, stride=2),
-            nn.BatchNorm2d(64),
+            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, padding=0, stride=2),
+            nn.BatchNorm2d(num_features=64),
             nn.ReLU(),
-            nn.MaxPool2d(2)
+            nn.MaxPool2d(stride=2)
         )
 
         self.classifier = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(3*3*64, 10),
+            nn.Linear(in_features=3*3*64, out_features=10),
             nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(10, 2)
+            nn.Dropout(p=0.5),
+            nn.Linear(in_features=10, out_features=2)
         )
 
     def forward(self, x):

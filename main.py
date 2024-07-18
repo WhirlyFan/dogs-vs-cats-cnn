@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 from data import download_extract_data, ImageFolderCustom
 from helpers import find_classes, device, plot_loss_curves
-from model import TinyVGG, train
+from model import ModelV0, train
 from constants import BATCH_SIZE, MODEL_PATH, MODEL_SAVE_PATH, NUM_EPOCHS, NUM_WORKERS
 
 print(f"Device: {device}")
@@ -73,7 +73,7 @@ def main():
     print(f"Validation data: {len(val_data)} | Validation dataloader: {len(validation_dataloader)}")
     print(f"Train data shape: {train_data[0][0].shape} | Train data label: {train_data[0][1]}")
 
-    model_0 = TinyVGG().to(device)
+    model_0 = ModelV0().to(device)
     image_batch, label_batch = next(iter(train_dataloader))
     print(f"Image batch shape: {image_batch.shape} | Label batch shape: {label_batch.shape}")
     # print(model_0(image_batch.to(device))) # test matrix fit
