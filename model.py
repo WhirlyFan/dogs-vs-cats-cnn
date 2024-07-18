@@ -7,58 +7,48 @@ from PIL import Image
 from helpers import device
 
 class TinyVGG(nn.Module):
-  """
-  Model architecture copying TinyVGG from CNN Explainer
-  """
-  def __init__(self, input_shape: int, hidden_units: int, output_shape: int) -> None:
-    super().__init__()
-    self.conv_block_1 = nn.Sequential(
-        nn.Conv2d(in_channels=input_shape,
-                  out_channels=hidden_units,
-                  kernel_size=3,
-                  stride=1,
-                  padding=0),
-        nn.ReLU(),
-        nn.Conv2d(in_channels=hidden_units,
-                  out_channels=hidden_units,
-                  kernel_size=3,
-                  stride=1,
-                  padding=0),
-        nn.ReLU(),
-        nn.MaxPool2d(kernel_size=2,
-                     stride=2) # default stride value is same as kernel_size
-    )
-    self.conv_block_2 = nn.Sequential(
-        nn.Conv2d(in_channels=hidden_units,
-                  out_channels=hidden_units,
-                  kernel_size=3,
-                  stride=1,
-                  padding=0),
-        nn.ReLU(),
-        nn.Conv2d(in_channels=hidden_units,
-                  out_channels=hidden_units,
-                  kernel_size=3,
-                  stride=1,
-                  padding=0),
-        nn.ReLU(),
-        nn.MaxPool2d(kernel_size=2,
-                     stride=2) # default stride value is same as kernel_size
-    )
-    self.classifier = nn.Sequential(
-        nn.Flatten(),
-        nn.Linear(in_features=hidden_units*53*53, # Printing shapes after conv_blocks can help find matrix mismatches
-                  out_features=output_shape)
-    )
+    def __init__(self) -> None:
+        super().__init__()
 
-  def forward(self, x):
-    # x = self.conv_block_1(x) # slow. computation
-    # print(x.shape)
-    # x = self.conv_block_2(x) # back to memory then computation
-    # print(x.shape)
-    # x = self.classifier(x) # back to memory then computation
-    # print(x.shape)
-    # return x
-    return self.classifier(self.conv_block_2(self.conv_block_1(x))) # benefits from operator fusion (better for your cpu): https://horace.io/brrr_intro.html
+        self.conv_block_1 = nn.Sequential(
+            nn.Conv2d(3, 16, kernel_size=3, padding=0, stride=2),
+            nn.BatchNorm2d(16),
+            nn.ReLU(),
+            nn.MaxPool2d(2)
+        )
+
+        self.conv_block_2 = nn.Sequential(
+            nn.Conv2d(16, 32, kernel_size=3, padding=0, stride=2),
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+            nn.MaxPool2d(2)
+        )
+
+        self.conv_block_3 = nn.Sequential(
+            nn.Conv2d(32, 64, kernel_size=3, padding=0, stride=2),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.MaxPool2d(2)
+        )
+
+        self.classifier = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(3*3*64, 10),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(10, 2)
+        )
+
+    def forward(self, x):
+        # x = self.conv_block_1(x)
+        # print(x.shape)
+        # x = self.conv_block_2(x)
+        # print(x.shape)
+        # x = self.conv_block_3(x)
+        # print(x.shape)
+        # x = self.classifier(x)
+        return self.classifier(self.conv_block_3(self.conv_block_2(self.conv_block_1(x))))
+
 
 # Create train_step()
 def train_step(model: torch.nn.Module,

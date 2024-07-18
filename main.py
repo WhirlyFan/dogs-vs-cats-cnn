@@ -27,9 +27,9 @@ def main():
     class_names, class_to_idx = find_classes(train_dir)
 
     # Use smaller subset of data for testing
-    train_list = random.sample(train_list, 1000)
-    validation_list = random.sample(validation_list, 200)
-    test_list = random.sample(test_list, 200)
+    # train_list = random.sample(train_list, 1000)
+    # validation_list = random.sample(validation_list, 200)
+    # test_list = random.sample(test_list, 200)
 
     print(f"Train list: {len(train_list)} | Validation list: {len(validation_list)} | Test list: {len(test_list)}")
 
@@ -73,9 +73,7 @@ def main():
     print(f"Validation data: {len(val_data)} | Validation dataloader: {len(validation_dataloader)}")
     print(f"Train data shape: {train_data[0][0].shape} | Train data label: {train_data[0][1]}")
 
-    model_0 = TinyVGG(input_shape=3,
-                      hidden_units=10,
-                      output_shape=len(class_names)).to(device)
+    model_0 = TinyVGG().to(device)
     image_batch, label_batch = next(iter(train_dataloader))
     print(f"Image batch shape: {image_batch.shape} | Label batch shape: {label_batch.shape}")
     # print(model_0(image_batch.to(device))) # test matrix fit
