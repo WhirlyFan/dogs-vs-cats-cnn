@@ -1,82 +1,186 @@
 import torch
 from torch import nn
 from torch.utils.data import Dataset
-from torchvision import transforms
+from tqdm.auto import tqdm
+from timeit import default_timer as timer
 from PIL import Image
+from helpers import device
 
-# Write a transform for image
-data_transform = transforms.Compose([
-    # Resize our images to 64x64
-    transforms.Resize(size=(224, 224)),
-    # Flip the images randomly on the horzontal
-    transforms.RandomHorizontalFlip(p=0.5),
-    # Randomly crop the images
-    transforms.RandomResizedCrop(224),
-    # Turn the image into a torch.Tensor
-    transforms.ToTensor()
-])
+class TinyVGG(nn.Module):
+  """
+  Model architecture copying TinyVGG from CNN Explainer
+  """
+  def __init__(self, input_shape: int, hidden_units: int, output_shape: int) -> None:
+    super().__init__()
+    self.conv_block_1 = nn.Sequential(
+        nn.Conv2d(in_channels=input_shape,
+                  out_channels=hidden_units,
+                  kernel_size=3,
+                  stride=1,
+                  padding=0),
+        nn.ReLU(),
+        nn.Conv2d(in_channels=hidden_units,
+                  out_channels=hidden_units,
+                  kernel_size=3,
+                  stride=1,
+                  padding=0),
+        nn.ReLU(),
+        nn.MaxPool2d(kernel_size=2,
+                     stride=2) # default stride value is same as kernel_size
+    )
+    self.conv_block_2 = nn.Sequential(
+        nn.Conv2d(in_channels=hidden_units,
+                  out_channels=hidden_units,
+                  kernel_size=3,
+                  stride=1,
+                  padding=0),
+        nn.ReLU(),
+        nn.Conv2d(in_channels=hidden_units,
+                  out_channels=hidden_units,
+                  kernel_size=3,
+                  stride=1,
+                  padding=0),
+        nn.ReLU(),
+        nn.MaxPool2d(kernel_size=2,
+                     stride=2) # default stride value is same as kernel_size
+    )
+    self.classifier = nn.Sequential(
+        nn.Flatten(),
+        nn.Linear(in_features=hidden_units*53*53, # Printing shapes after conv_blocks can help find matrix mismatches
+                  out_features=output_shape)
+    )
 
-class dataset(Dataset):
-  def __init__(self,file_list,transform = None):
-    self.file_list=file_list
-    self.transform=transform
+  def forward(self, x):
+    # x = self.conv_block_1(x) # slow. computation
+    # print(x.shape)
+    # x = self.conv_block_2(x) # back to memory then computation
+    # print(x.shape)
+    # x = self.classifier(x) # back to memory then computation
+    # print(x.shape)
+    # return x
+    return self.classifier(self.conv_block_2(self.conv_block_1(x))) # benefits from operator fusion (better for your cpu): https://horace.io/brrr_intro.html
 
-  def __len__(self):
-    self.filelength =len(self.file_list)
-    return self.filelength
+# Create train_step()
+def train_step(model: torch.nn.Module,
+               dataloader: torch.utils.data.DataLoader,
+               loss_fn: torch.nn.Module,
+               optimizer: torch.optim.Optimizer,
+               device=device):
+  # Put the model in train mode
+  model.train()
 
-  def __getitem__(self,idx):
-    img_path =self.file_list[idx]
-    img = Image.open(img_path)
-    img_transformed = self.transform(img)
+  # Setup train loss and train accuracy values
+  train_loss, train_acc = 0, 0
 
-    label = img_path.stem.split('.')[0]
-    if label == 'dog':
-        label = 1
-    elif label == 'cat':
-        label = 0
+  # Loop through dataloader data batches
+  for batch, (X, y) in enumerate(dataloader):
+    # Send data to the target device
+    X, y = X.to(device), y.to(device)
 
-    return img_transformed, label
+    # 1. Forward pass
+    y_pred = model(X) # output model logits
 
+    # 2. Calculate the loss
+    loss = loss_fn(y_pred, y)
+    train_loss += loss.item()
 
-class Cnn(nn.Module):
-    def __init__(self):
-        super(Cnn,self).__init__()
+    # 3. Optimizer zero grad
+    optimizer.zero_grad()
 
-        self.layer1 = nn.Sequential(
-            nn.Conv2d(3,16,kernel_size=3,padding=0,stride=2),
-            nn.BatchNorm2d(16),
-            nn.ReLU(),
-            nn.MaxPool2d(2)
-        )
+    # 4. Loss backward
+    loss.backward()
 
-        self.layer2 = nn.Sequential(
-            nn.Conv2d(16,32,kernel_size=3,padding=0,stride=2),
-            nn.BatchNorm2d(32),
-            nn.ReLU(),
-            nn.MaxPool2d(2)
+    # 5. Optimizer step
+    optimizer.step()
 
-        )
+    # Calculate accuracy metric
+    y_pred_class = torch.argmax(torch.softmax(y_pred, dim=1), dim=1)
+    train_acc += (y_pred_class==y).sum().item()/len(y_pred)
 
+  # Adjust metrics to get average loss and accuracy per batch
+  train_loss = train_loss / len(dataloader)
+  train_acc = train_acc / len(dataloader)
+  return train_loss, train_acc
 
-        self.layer3 = nn.Sequential(
-            nn.Conv2d(32,64,kernel_size=3,padding=0,stride=2),
-            nn.BatchNorm2d(64),
-            nn.ReLU(),
-            nn.MaxPool2d(2)
+# Create a test step
+def test_step(model: torch.nn.Module,
+              dataloader: torch.utils.data.DataLoader,
+              loss_fn: torch.nn.Module,
+              device=device):
+  # Put model in eval mode
+  model.eval()
 
-        )
+  # Setup test loss and test accuracy values
+  test_loss, test_acc = 0, 0
 
-        self.fc1 = nn.Linear(3*3*64,10)
-        self.dropout = nn.Dropout(0.5)
-        self.fc2 = nn.Linear(10,2)
-        self.relu = nn.ReLU()
+  # Turn on inference mode
+  with torch.inference_mode():
+    # Loop through DataLoader batches
+    for batch, (X, y) in enumerate(dataloader):
+      # Send data to the target device
+      X, y = X.to(device), y.to(device)
 
-    def forward(self,x):
-        out =self.layer1(x)
-        out =self.layer2(out)
-        out =self.layer3(out)
-        out =out.view(out.size(0),-1)
-        out =self.relu(self.fc1(out))
-        out =self.fc2(out)
-        return out
+      # 1. Forward pass
+      test_pred_logits = model(X)
+
+      # 2. Calculate the loss
+      loss = loss_fn(test_pred_logits, y)
+      test_loss += loss.item()
+
+      # Calculate the accuracy
+      test_pred_labels = test_pred_logits.argmax(dim=1) # We take the softmax just for completeness, not 100% necessary to get the same results
+      test_acc += ((test_pred_labels == y).sum().item()/len(test_pred_labels))
+
+    # Adjust metrics to get average loss and accuracy per batch
+    test_loss = test_loss / len(dataloader)
+    test_acc = test_acc / len(dataloader)
+    return test_loss, test_acc
+
+# 1. Create a train function that takes in various model parameters + optimizer + dataloaders + loss function
+def train(model: torch.nn.Module,
+          train_dataloader: torch.utils.data.DataLoader,
+          test_dataloader: torch.utils.data.DataLoader,
+          optimizer: torch.optim.Optimizer,
+          loss_fn: torch.nn.Module = nn.CrossEntropyLoss(),
+          epochs: int = 5,
+          device=device):
+  # 2. Create empty results dictionary
+  results = {"train_loss" : [],
+             "train_acc": [],
+             "test_loss": [],
+             "test_acc": []}
+
+  start_time = timer()
+
+  # 3. Loop through training and testing steps for a number of epochs
+  for epoch in tqdm(range(epochs)):
+    train_loss, train_acc = train_step(model=model,
+                                       dataloader=train_dataloader,
+                                       loss_fn=loss_fn,
+                                       optimizer=optimizer,
+                                       device=device)
+    test_loss, test_acc = test_step(model=model,
+                                       dataloader=test_dataloader,
+                                       loss_fn=loss_fn,
+                                       device=device)
+    # 4. Print out what's happening
+    print(f"Epoch: {epoch} | Train loss: {train_loss:.4f} | Train acc: {train_acc:.4f} | Test loss: {test_loss:.4f} | Test acc: {test_acc:.4f}")
+
+    # 5. Update results dictionary
+    results["train_loss"].append(train_loss)
+    results["train_acc"].append(train_acc)
+    results["test_loss"].append(test_loss)
+    results["test_acc"].append(test_acc)
+
+  end_time = timer()
+
+  time = end_time - start_time
+
+  if time < 60:
+    print(f"Time taken: {time:.2f} seconds")
+  elif time < 3600:
+    print(f"Time taken: {time/60:.2f} minutes")
+  else:
+    print(f"Time taken: {time/3600:.2f} hours")
+  # 6. Return the filled results at the end of the epochs loop
+  return results

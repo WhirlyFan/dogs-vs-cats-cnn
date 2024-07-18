@@ -1,42 +1,71 @@
 import os
+import pathlib
 import random
+import numpy as np
+import re
+from typing import Dict, List, Tuple
 from PIL import Image
 from pathlib import Path
 import matplotlib.pyplot as plt
+import torch
+from torch.utils.data import Dataset
 
-def walk_through_dir(dir_path):
-  """Walks through dir_path returning its contents."""
-  for dirpath, dirnames, filenames in os.walk(dir_path):
-    print(f"There are {len(dirnames)} directories and {len(filenames)} images in {dirpath}")
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
+def find_classes(directory: str):
+  directory = Path(directory)
+  class_names_set = set()
+  files_by_class = {}
 
-def display_random_image(image_path: Path, seed=None) -> None:
-    """Display a random image from a specified directory."""
-    # Set seed
-    random.seed(seed)
+  for file_path in directory.glob("*.jpg"):
+      # Extract the class name using regex
+      match = re.match(r"(\w+)\.\d+\.jpg", file_path.name)
+      if match:
+          class_name = match.group(1)
+      else:
+          class_name = "no_class_name"
 
-    # 1. Get all image paths
-    image_path_list = list(image_path.glob("*.jpg"))
+      if class_name not in files_by_class:
+          files_by_class[class_name] = []
+      files_by_class[class_name].append(file_path)
+      class_names_set.add(class_name)
 
-    # 2. Pick a random image path
-    random_image_path = random.choice(image_path_list)
-    print(random_image_path)
+  class_names = sorted(class_names_set)  # Sort class names to ensure consistent indexing
+  class_to_idx = {class_name: idx for idx, class_name in enumerate(class_names)}
 
-    # 3. Get image class from path name (the image class is the name of the directory)
-    image_class = random_image_path.stem.split('.')[0]
-    print(image_class)
+  return class_names, class_to_idx
 
-    # 4. Open image
-    img = Image.open(random_image_path)
+def plot_loss_curves(results: Dict[str, List[float]]):
+  """Plots training curves of a results dictionary."""
+  # Get the loss values of the results dictionary (training and test)
+  loss = results["train_loss"]
+  test_loss = results["test_loss"]
 
-    # 5. Print metadata
-    print(f"Random image path: {random_image_path}")
-    print(f"Image class: {image_class}")
-    print(f"Image height: {img.height}")
-    print(f"Image width: {img.width}")
+  #  Get the accuracy values of the results dictionary (training and test)
+  accuracy = results["train_acc"]
+  test_accuracy = results["test_acc"]
 
-    # 6. Display image using matplotlib
-    plt.imshow(img)
-    plt.title(f"Class: {image_class}")
-    plt.axis('off')  # Hide axes
-    plt.show()
+  # Figure out how many epochs there were
+  epochs = range(len(results["train_loss"]))
+
+  # Setup a plot
+  plt.figure(figsize=(15, 7))
+
+  # Plot the loss
+  plt.subplot(1, 2, 1)
+  plt.plot(epochs, loss, label="train_loss")
+  plt.plot(epochs, test_loss, label="test_loss")
+  plt.title("Loss")
+  plt.xlabel("Epochs")
+  plt.legend()
+
+  # Plot the accuracy
+  plt.subplot(1, 2, 2)
+  plt.plot(epochs, accuracy, label="train_accuracy")
+  plt.plot(epochs, test_accuracy, label="test_accuracy")
+  plt.title("Accuracy")
+  plt.xlabel("Epochs")
+  plt.legend()
+
+  # Show the plot
+  plt.show()
