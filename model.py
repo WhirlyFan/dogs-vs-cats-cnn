@@ -14,21 +14,21 @@ class ModelV0(nn.Module):
             nn.Conv2d(in_channels=3, out_channels=16, kernel_size=3, padding=0, stride=2),
             nn.BatchNorm2d(num_features=16),
             nn.ReLU(),
-            nn.MaxPool2d(stride=2)
+            nn.MaxPool2d(kernel_size=2)
         )
 
         self.conv_block_2 = nn.Sequential(
             nn.Conv2d(in_channels=16, out_channels=32, kernel_size=3, padding=0, stride=2),
             nn.BatchNorm2d(num_features=32),
             nn.ReLU(),
-            nn.MaxPool2d(stride=2)
+            nn.MaxPool2d(kernel_size=2)
         )
 
         self.conv_block_3 = nn.Sequential(
             nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, padding=0, stride=2),
             nn.BatchNorm2d(num_features=64),
             nn.ReLU(),
-            nn.MaxPool2d(stride=2)
+            nn.MaxPool2d(kernel_size=2)
         )
 
         self.classifier = nn.Sequential(
