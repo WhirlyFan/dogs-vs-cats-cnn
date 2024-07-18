@@ -36,12 +36,23 @@ def main():
     train_transform = transforms.Compose([
     # Resize our images to 64x64
     transforms.Resize(size=(224, 224)),
-    # Flip the images randomly on the horzontal
-    transforms.RandomHorizontalFlip(p=0.5),
     # Randomly crop the images
     transforms.RandomResizedCrop(224),
+    # Flip the images randomly on the horzontal
+    transforms.RandomHorizontalFlip(p=0.5),
     # Turn the image into a torch.Tensor
     transforms.ToTensor()
+    ])
+
+    validation_transform = transforms.Compose([
+        # Resize our images to 64x64
+        transforms.Resize(size=(224, 224)),
+        # Randomly crop the images
+        transforms.RandomResizedCrop(224),
+        # Flip the images randomly on the horzontal
+        transforms.RandomHorizontalFlip(p=0.5),
+        # Turn the image into a torch.Tensor
+        transforms.ToTensor()
     ])
 
     test_transform = transforms.Compose([
@@ -53,7 +64,7 @@ def main():
 
     train_data = ImageFolderCustom(train_list, transform=train_transform)
     test_data = ImageFolderCustom(test_list, transform=test_transform)
-    val_data = ImageFolderCustom(validation_list, transform=test_transform)
+    val_data = ImageFolderCustom(validation_list, transform=validation_transform)
 
     train_dataloader = DataLoader(dataset=train_data,
                                 batch_size=BATCH_SIZE,
@@ -63,10 +74,10 @@ def main():
     test_dataloader = DataLoader(dataset=test_data,
                                 batch_size=BATCH_SIZE,
                                 num_workers=NUM_WORKERS,
-                                shuffle=False)
+                                shuffle=True)
     validation_dataloader = DataLoader(dataset=val_data,
                                 batch_size=BATCH_SIZE,
-                                shuffle=False)
+                                shuffle=True)
 
     print(f"Train data: {len(train_data)} | Train dataloader: {len(train_dataloader)}")
     print(f"Test data: {len(test_data)} | Test dataloader: {len(test_dataloader)}")
